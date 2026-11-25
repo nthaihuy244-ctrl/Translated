@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Phiên dịch song phương Việt ⇄ Trung</title>
+<style>
+  :root { --vi:#12233f; --vi2:#1c3560; --zh:#3b1a1a; --zh2:#5a2626; --ink:#f4f1ea; --mute:#b9b4a8; --acc:#ffd166; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; height:100%; background:#000; color:var(--ink);
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Noto Sans SC", "Noto Sans", sans-serif; overflow:hidden; }
+  #app { height:100dvh; display:flex; flex-direction:column; }
+  .half { flex:1 1 0; min-height:0; display:flex; flex-direction:column; padding:10px 12px 10px; position:relative; }
+  .half[data-lang="zh"] { background:linear-gradient(180deg,var(--zh),var(--zh2)); transform:rotate(180deg); padding-bottom:10px; padding-top:calc(10px + env(safe-area-inset-bottom)); }
+  .half[data-lang="vi"] { background:linear-gradient(180deg,var(--vi2),var(--vi)); padding-bottom:calc(10px + env(safe-area-inset-bottom)); }
+  .log { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:4px 2px; min-height:0; scroll-behavior:smooth; }
+  .empty { margin:auto; text-align:center; color:var(--mute); font-size:15px; line-height:1.5; padding:0 20px; }
+  .bubble { max-width:92%; border-radius:16px; padding:10px 14px; position:relative; }
+  .theirs { align-self:flex-start; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); }
+  .theirs .big { font-size:26px; line-height:1.3; font-weight:600; word-break:break-word; }
+  .theirs .py { font-size:15px; color:var(--acc); margin-top:4px; line-height:1.35; }
+  .mine { align-self:flex-end; background:rgba(0,0,0,.28); color:var(--mute); font-size:15px; line-height:1.35; }
+  .spk { position:absolute; right:8px; bottom:6px; background:none; border:0; color:var(--mute); font-size:18px; padding:4px 6px; cursor:pointer; }
+  .theirs .big { padding-right:26px; }
+  .loading { opacity:.6; animation:p 1s infinite alternate; }
+  @keyframes p { to { opacity:.25 } }
+  .inbar { display:flex; gap:8px; align-items:flex-end; margin-top:8px; }
+  textarea { flex:1; resize:none; height:46px; max-height:96px; border-radius:14px; border:1px solid rgba(255,255,255,.25);
+    background:rgba(0,0,0,.3); color:var(--ink); font:inherit; font-size:17px; padding:11px 12px; outline:none; }
+  textarea:focus { border-color:var(--acc); }
+  .btn { width:46px; height:46px; border-radius:50%; border:0; font-size:20px; cursor:pointer; color:#1a1a1a; background:var(--acc); flex:none; }
+  .btn.send { background:rgba(255,255,255,.9); border-radius:14px; }
+  .btn.mic.on { background:#ff5d5d; color:#fff; animation:pulse 1.1s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(255,93,93,.6)} 100%{box-shadow:0 0 0 14px rgba(255,93,93,0)} }
+  .mid { flex:none; display:flex; align-items:center; justify-content:center; gap:14px; background:#0b0b0d; padding:6px 10px; font-size:13px; color:var(--mute); }
+  .mid label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+  .mid button { background:#26262b; color:var(--ink); border:0; border-radius:999px; padding:6px 12px; font:inherit; cursor:pointer; }
+  .tag { position:absolute; top:6px; right:10px; font-size:11px; letter-spacing:.08em; color:var(--mute); opacity:.8; pointer-events:none; }
+  #toast { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,.85); color:#fff; padding:10px 16px;
+    border-radius:12px; font-size:14px; z-index:9; display:none; max-width:80%; text-align:center; }
+</style>
+</head>
+<body>
+<div id="app">
+  <section class="half" data-lang="zh">
+    <div class="tag">中文</div>
+    <div class="log"></div>
+    <div class="inbar">
+      <button class="btn mic" title="说话">🎤</button>
+      <textarea placeholder="说话或输入中文…" rows="1"></textarea>
+      <button class="btn send" title="发送">➤</button>
+    </div>
+  </section>
+
+  <div class="mid">
+    <span>Việt ⇄ 中文</span>
+    <label><input type="checkbox" id="auto" checked> Tự đọc</label>
+    <button id="clear">Xoá</button>
+  </div>
+
+  <section class="half" data-lang="vi">
+    <div class="tag">TIẾNG VIỆT</div>
+    <div class="log"></div>
+    <div class="inbar">
+      <button class="btn mic" title="Nói">🎤</button>
+      <textarea placeholder="Nói hoặc gõ tiếng Việt…" rows="1"></textarea>
+      <button class="btn send" title="Gửi">➤</button>
+    </div>
+  </section>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
+<script>
+const LANG = {
+  vi: { name:'Vietnamese', rec:'vi-VN', tts:'vi', empty:'Bấm 🎤 để nói hoặc gõ chữ.<br>Bản dịch sẽ hiện ở nửa màn hình đối diện.', other:'zh', stripe:'Đang dịch…' },
+  zh: { name:'Simplified Chinese', rec:'zh-CN', tts:'zh-CN', empty:'点击 🎤 说话或输入文字。<br>译文会显示在对面的屏幕上。', other:'vi', stripe:'翻译中…' }
+};
+const msgs = [];
+let seq = 0, activeHalf = null;
+const halves = {};
+document.querySelectorAll('.half').forEach(el => {
+  const lang = el.dataset.lang;
+  halves[lang] = { lang, el, log: el.querySelector('.log'), ta: el.querySelector('textarea'), mic: el.querySelector('.mic'), send: el.querySelector('.send') };
+});
+
+function toast(t, ms=2600) { const e=document.getElementById('toast'); e.textContent=t; e.style.display='block'; clearTimeout(toast.t); toast.t=setTimeout(()=>e.style.display='none',ms); }
+
+/* ---------- capabilities ---------- */
+const sample=null, tts=null, dict=null;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+
+function setMic(h) {
+  activeHalf = h;
+  Object.values(halves).forEach(x => x.mic.classList.toggle('on', x === h));
+}
+
+function startMic(h) {
+  if (activeHalf) stopMic();
+  setMic(h);
+  if (tts) { try { tts.stop(); } catch(e){} }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  if (dict) {
+    dict.start().catch(err => { setMic(null); toast(err && err.code === 'not_granted' ? 'Chưa cấp quyền mic — hãy gõ chữ' : 'Không bật được mic — hãy gõ chữ'); });
+  } else if (SR) {
+    try {
+      rec = new SR(); rec.lang = LANG[h.lang].rec; rec.interimResults = true; rec.continuous = false;
+      rec.onresult = ev => {
+        let txt = '', fin = false;
+        for (let i = ev.resultIndex; i < ev.results.length; i++) { txt += ev.results[i][0].transcript; if (ev.results[i].isFinal) fin = true; }
+        h.ta.value = txt;
+        if (fin && txt.trim()) submit(h, txt);
+      };
+      rec.onerror = e => { toast('Mic không dùng được ở đây — hãy gõ chữ'); setMic(null); };
+      rec.onend = () => setMic(null);
+      rec.start();
+    } catch (e) { setMic(null); toast('Mic không dùng được — hãy gõ chữ'); }
+  } else { setMic(null); toast('Trình duyệt này chưa hỗ trợ mic — hãy gõ chữ'); }
+}
+function stopMic() {
+  if (dict) { dict.stop().catch(()=>{}); }
+  if (rec) { try { rec.stop(); } catch(e){} }
+  setMic(null);
+}
+
+/* ---------- translate ---------- */
+async function translate(m) {
+  const src = LANG[m.from], dstKey = src.other, dst = LANG[dstKey];
+  try {
+    const pair = (m.from === 'vi' ? 'vi|zh-CN' : 'zh-CN|vi');
+    const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(m.text) + '&langpair=' + pair);
+    const j = await r.json();
+    let t = (j.responseData && j.responseData.translatedText) || '';
+    const d = document.createElement('textarea'); d.innerHTML = t; t = d.value.trim();
+    if (!t || j.responseStatus && Number(j.responseStatus) !== 200) throw new Error('empty');
+    m.tr = t;
+    m.py = (dstKey === 'zh' && window.pinyinPro) ? pinyinPro.pinyin(t) : '';
+  } catch (err) {
+    m.err = true; m.tr = '⚠ Không dịch được / 翻译失败';
+  }
+  m.done = true;
+  render();
+  if (!m.err && document.getElementById('auto').checked) speak(m.tr, dst.tts);
+}
+
+function submit(h, text) {
+  text = (text || '').trim();
+  if (!text) return;
+  h.ta.value = '';
+  const m = { id: ++seq, from: h.lang, text, tr: null, done: false };
+  msgs.push(m);
+  render();
+  translate(m);
+}
+
+/* ---------- speech out ---------- */
+async function speak(text, lang) {
+  if (activeHalf) return;
+  if (tts) {
+    try { await tts.speak(text, { language: lang }); return; } catch (e) { if (e && (e.code === 'busy')) return; }
+  }
+  if (window.speechSynthesis) {
+    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = lang === 'vi' ? 'vi-VN' : 'zh-CN'; speechSynthesis.speak(u); } catch(e){}
+  }
+}
+
+/* ---------- render ---------- */
+function render() {
+  for (const lang of ['vi','zh']) {
+    const h = halves[lang], log = h.log;
+    log.textContent = '';
+    if (!msgs.length) {
+      const d = document.createElement('div'); d.className = 'empty'; d.innerHTML = LANG[lang].empty; log.appendChild(d); continue;
+    }
+    for (const m of msgs) {
+      const b = document.createElement('div');
+      if (m.from === lang) {
+        b.className = 'bubble mine'; b.textContent = m.text;
+      } else {
+        b.className = 'bubble theirs';
+        const big = document.createElement('div'); big.className = 'big' + (m.done ? '' : ' loading');
+        big.textContent = m.done ? m.tr : LANG[lang].stripe;
+        b.appendChild(big);
+        if (m.done && m.py && lang === 'zh') { const p = document.createElement('div'); p.className = 'py'; p.textContent = m.py; b.appendChild(p); }
+        if (m.done && !m.err) {
+          const s = document.createElement('button'); s.className = 'spk'; s.textContent = '🔊';
+          s.onclick = () => speak(m.tr, LANG[lang].tts); b.appendChild(s);
+        }
+      }
+      log.appendChild(b);
+    }
+    log.scrollTop = log.scrollHeight;
+  }
+}
+
+/* ---------- wiring ---------- */
+for (const h of Object.values(halves)) {
+  h.mic.addEventListener('click', () => { activeHalf === h ? stopMic() : startMic(h); });
+  h.send.addEventListener('click', () => { if (activeHalf) stopMic(); submit(h, h.ta.value); });
+  h.ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit(h, h.ta.value); } });
+}
+document.getElementById('clear').addEventListener('click', () => { msgs.length = 0; render(); });
+render();
+</script>
+</body>
+</html>
