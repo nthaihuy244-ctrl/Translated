@@ -17,19 +17,20 @@
   .empty { margin:auto; text-align:center; color:var(--mute); font-size:15px; line-height:1.5; padding:0 20px; }
   .bubble { max-width:92%; border-radius:16px; padding:10px 14px; position:relative; }
   .theirs { align-self:flex-start; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); }
-  .theirs .big { font-size:26px; line-height:1.3; font-weight:600; word-break:break-word; }
+  .theirs .big { font-size:24px; line-height:1.3; font-weight:600; word-break:break-word; }
   .theirs .py { font-size:15px; color:var(--acc); margin-top:4px; line-height:1.35; }
-  .mine { align-self:flex-end; background:rgba(0,0,0,.28); color:var(--mute); font-size:15px; line-height:1.35; }
+  .mine { align-self:flex-end; background:rgba(0,0,0,.28); color:var(--mute); font-size:13px; padding:6px 10px; line-height:1.35; }
   .spk { position:absolute; right:8px; bottom:6px; background:none; border:0; color:var(--mute); font-size:18px; padding:4px 6px; cursor:pointer; }
   .theirs .big { padding-right:26px; }
   .loading { opacity:.6; animation:p 1s infinite alternate; }
   @keyframes p { to { opacity:.25 } }
-  .inbar { display:flex; gap:8px; align-items:flex-end; margin-top:8px; }
-  textarea { flex:1; resize:none; height:46px; max-height:96px; border-radius:14px; border:1px solid rgba(255,255,255,.25);
-    background:rgba(0,0,0,.3); color:var(--ink); font:inherit; font-size:17px; padding:11px 12px; outline:none; }
+  .inbar { display:flex; gap:8px; align-items:center; margin-top:8px; }
+  textarea { flex:1; resize:none; height:38px; max-height:70px; border-radius:12px; border:1px solid rgba(255,255,255,.25);
+    background:rgba(0,0,0,.3); color:var(--ink); font:inherit; font-size:14px; padding:9px 10px; outline:none; }
   textarea:focus { border-color:var(--acc); }
-  .btn { width:46px; height:46px; border-radius:50%; border:0; font-size:20px; cursor:pointer; color:#1a1a1a; background:var(--acc); flex:none; }
-  .btn.send { background:rgba(255,255,255,.9); border-radius:14px; }
+  .btn { width:38px; height:38px; border-radius:50%; border:0; font-size:16px; cursor:pointer; color:#1a1a1a; background:var(--acc); flex:none; }
+  .btn.send { background:rgba(255,255,255,.9); border-radius:12px; }
+  .btn.mic { width:78px; height:78px; font-size:36px; box-shadow:0 4px 14px rgba(0,0,0,.35); }
   .btn.mic.on { background:#ff5d5d; color:#fff; animation:pulse 1.1s infinite; }
   @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(255,93,93,.6)} 100%{box-shadow:0 0 0 14px rgba(255,93,93,0)} }
   .mid { flex:none; display:flex; align-items:center; justify-content:center; gap:14px; background:#0b0b0d; padding:6px 10px; font-size:13px; color:var(--mute); }
