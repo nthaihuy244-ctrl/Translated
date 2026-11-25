@@ -106,14 +106,16 @@ function startMic(h) {
   } else if (SR) {
     try {
       rec = new SR(); rec.lang = LANG[h.lang].rec; rec.interimResults = true; rec.continuous = false;
+      let last = '', sent = false;
+      const flush = () => { if (!sent && last.trim()) { sent = true; submit(h, last); } };
       rec.onresult = ev => {
         let txt = '', fin = false;
-        for (let i = ev.resultIndex; i < ev.results.length; i++) { txt += ev.results[i][0].transcript; if (ev.results[i].isFinal) fin = true; }
-        h.ta.value = txt;
-        if (fin && txt.trim()) submit(h, txt);
+        for (let i = 0; i < ev.results.length; i++) { txt += ev.results[i][0].transcript; if (ev.results[i].isFinal) fin = true; }
+        last = txt; h.ta.value = txt;
+        if (fin) { flush(); try { rec.stop(); } catch(e){} }
       };
-      rec.onerror = e => { toast('Mic không dùng được ở đây — hãy gõ chữ'); setMic(null); };
-      rec.onend = () => setMic(null);
+      rec.onerror = e => { if (e.error !== 'no-speech' && e.error !== 'aborted') toast('Mic không dùng được ở đây — hãy gõ chữ'); };
+      rec.onend = () => { flush(); setMic(null); };
       rec.start();
     } catch (e) { setMic(null); toast('Mic không dùng được — hãy gõ chữ'); }
   } else { setMic(null); toast('Trình duyệt này chưa hỗ trợ mic — hãy gõ chữ'); }
@@ -147,6 +149,9 @@ async function translate(m) {
 function submit(h, text) {
   text = (text || '').trim();
   if (!text) return;
+  const now = Date.now();
+  if (submit.last === text + h.lang && now - submit.t < 3000) { h.ta.value = ''; return; }
+  submit.last = text + h.lang; submit.t = now;
   h.ta.value = '';
   const m = { id: ++seq, from: h.lang, text, tr: null, done: false };
   msgs.push(m);
